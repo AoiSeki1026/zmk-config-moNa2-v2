@@ -1,5 +1,49 @@
+name: Build ZMK
+
 on: [push, pull_request, workflow_dispatch]
 
 jobs:
   build:
-    uses: zmkfirmware/zmk/.github/workflows/build-user-config.yml@v0.3.0
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout config repo
+        uses: actions/checkout@v4
+
+      - name: Checkout ZMK (v0.3.0)
+        uses: actions/checkout@v4
+        with:
+          repository: zmkfirmware/zmk
+          ref: v0.3.0
+          path: zmk
+
+      - name: Install west + deps
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install west
+          west --version
+
+      - name: Init west workspace
+        run: |
+          west init -l zmk/app
+          west update
+
+      - name: Build (and keep build dir path)
+        run: |
+          BUILD_DIR="$(mktemp -d)"
+          echo "BUILD_DIR=$BUILD_DIR" >> $GITHUB_ENV
+          west build -s zmk/app -d "$BUILD_DIR" -b seeeduino_xiao_ble -S studio-rpc-usb-uart -- \
+            -DZMK_CONFIG="${GITHUB_WORKSPACE}/config" \
+            -DSHIELD="mona2_r;rgbled_adapter" \
+            -DZMK_EXTRA_MODULES="${GITHUB_WORKSPACE}"
+
+      - name: Debug PMW3610 config and device ord
+        if: failure() || always()
+        run: |
+          echo "===== BUILD_DIR ====="
+          echo "$BUILD_DIR"
+
+          echo "===== CHECK CONFIG_PMW3610 ====="
+          grep "^CONFIG_PMW3610" "$BUILD_DIR/zephyr/.config" || true
+
+          echo "===== CHECK dts_ord_171 ====="
+          grep -R "dts_ord_171" "$BUILD_DIR/zephyr/include/generated" | head -100 || true
