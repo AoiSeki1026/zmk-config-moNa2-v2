@@ -1,68 +1,83 @@
-name: Build ZMK
+name: Build ZMK (Debug PMW3610)
 
-on: [push, pull_request, workflow_dispatch]
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout config repo
+      # 1. config リポジトリを checkout
+      - name: Checkout config repository
         uses: actions/checkout@v4
 
-      - name: Checkout ZMK (v0.3.0)
+      # 2. ZMK 本体を checkout（v0.3.0 固定）
+      - name: Checkout ZMK firmware (v0.3.0)
         uses: actions/checkout@v4
         with:
           repository: zmkfirmware/zmk
           ref: v0.3.0
           path: zmk
 
-      - name: Install west + deps
+      # 3. Python / west の準備
+      - name: Install west and Python deps
         run: |
           python3 -m pip install --upgrade pip
           python3 -m pip install west
           west --version
 
+      # 4. west workspace 初期化（workspace = リポジトリ直下）
       - name: Init west workspace
         run: |
-          west init -l zmk/app
+          west init -l zmk/app .
           west update
 
-      - name: Build (and keep build dir path)
+      # 5. ビルド実行（ビルドディレクトリを固定して保存）
+      - name: Build firmware
         run: |
           BUILD_DIR="$(mktemp -d)"
           echo "BUILD_DIR=$BUILD_DIR" >> $GITHUB_ENV
-          west build -s zmk/app -d "$BUILD_DIR" -b seeeduino_xiao_ble -S studio-rpc-usb-uart -- \
+
+          west build \
+            -s zmk/app \
+            -d "$BUILD_DIR" \
+            -b seeeduino_xiao_ble \
+            -S studio-rpc-usb-uart -- \
             -DZMK_CONFIG="${GITHUB_WORKSPACE}/config" \
             -DSHIELD="mona2_r;rgbled_adapter" \
             -DZMK_EXTRA_MODULES="${GITHUB_WORKSPACE}"
-      - name: Debug dts_ord_171 mapping
-        if: failure() || always()
-        run: |
-          echo "===== Find __device_dts_ord_171 mapping ====="
-          grep -R --line-number "device_dts_ord_171" /tmp/tmp.*/zephyr/include/generated | head -50 || true
 
-          echo ""
-          echo "===== Find dts_ord_171 mapping (devicetree_generated.h) ====="
-          grep -R --line-number "dts_ord_171" /tmp/tmp.*/zephyr/include/generated/devicetree_generated.h | head -50 || true
-
-          echo ""
-          echo "===== Show relevant snippet around ord_171 ====="
-          f=$(grep -R --line-number "device_dts_ord_171" /tmp/tmp.*/zephyr/include/generated/devicetree_generated.h | head -1 | cut -d: -f1) || true
-          if [ -n "$f" ]; then
-            l=$(grep -n "device_dts_ord_171" "$f" | head -1 | cut -d: -f1)
-            start=$((l-5)); if [ $start -lt 1 ]; then start=1; fi
-            end=$((l+5))
-            echo "file=$f line=$l"
-            sed -n "${start},${end}p" "$f"
-          fi
-      - name: Debug PMW3610 config and device ord
+      # 6. Kconfig 確認（PMW3610 が本当に有効か）
+      - name: Debug Kconfig (PMW3610)
         if: failure() || always()
         run: |
           echo "===== BUILD_DIR ====="
           echo "$BUILD_DIR"
 
-          echo "===== CHECK CONFIG_PMW3610 ====="
+          echo ""
+          echo "===== CONFIG_PMW3610 ====="
           grep "^CONFIG_PMW3610" "$BUILD_DIR/zephyr/.config" || true
 
-          echo "===== CHECK dts_ord_171 ====="
-          grep -R "dts_ord_171" "$BUILD_DIR/zephyr/include/generated" | head -100 || true
+      # 7. dts_ord_171 の正体を特定
+      - name: Debug dts_ord_171 mapping
+        if: failure() || always()
+        run: |
+          echo "===== Search device_dts_ord_171 ====="
+          grep -R --line-number "__device_dts_ord_171" "$BUILD_DIR/zephyr/include/generated" || true
+
+          echo ""
+          echo "===== Search dts_ord_171 in devicetree_generated.h ====="
+          grep -n "dts_ord_171" "$BUILD_DIR/zephyr/include/generated/devicetree_generated.h" || true
+
+          echo ""
+          echo "===== Context around dts_ord_171 ====="
+          file="$BUILD_DIR/zephyr/include/generated/devicetree_generated.h"
+          line=$(grep -n "dts_ord_171" "$file" | head -1 | cut -d: -f1 || true)
+          if [ -n "$line" ]; then
+            start=$((line-5)); if [ $start -lt 1 ]; then start=1; fi
+            end=$((line+5))
+            sed -n "${start},${end}p" "$file"
+          fi
