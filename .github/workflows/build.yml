@@ -13,23 +13,17 @@ jobs:
       - name: Checkout config repository
         uses: actions/checkout@v4
 
-      - name: Checkout ZMK firmware (v0.3.0)
-        uses: actions/checkout@v4
-        with:
-          repository: zmkfirmware/zmk
-          ref: v0.3.0
-          path: zmk
-
       - name: Install west
         run: |
           python3 -m pip install --upgrade pip
           python3 -m pip install west
           west --version
 
-      - name: Init west workspace
+      # 重要: ZMK側ではなく「このrepoの config/west.yml」をmanifestとして使う
+      - name: Init west workspace (manifest=config)
         run: |
-          west init -l zmk/app
-          cd zmk/app
+          # repo root に .west が作られる想定
+          west init -l config
           west update
 
       - name: Build firmware (non-fatal, with diagnostics)
@@ -41,12 +35,10 @@ jobs:
           mkdir -p "$BUILD_DIR"
           echo "BUILD_DIR=$BUILD_DIR" >> $GITHUB_ENV
 
-          cd zmk/app
-
           WEST_BUILD_RC=0
           west build \
             -p always \
-            -s . \
+            -s zmk/app \
             -d "$BUILD_DIR" \
             -b seeeduino_xiao_ble \
             -S studio-rpc-usb-uart -- \
@@ -58,25 +50,13 @@ jobs:
           echo "===== west build exit code ====="
           echo "$WEST_BUILD_RC"
 
-          echo "===== PWD ====="
-          pwd
-
           echo "===== LIST BUILD_DIR (ls) ====="
           ls -la "$BUILD_DIR" || true
 
           echo "===== LIST BUILD_DIR (find maxdepth 4) ====="
           find "$BUILD_DIR" -maxdepth 4 -print || true
 
-          echo "===== ALSO CHECK common fallback build dirs ====="
-          echo "---- zmk/app/build ----"
-          ls -la "${GITHUB_WORKSPACE}/zmk/app/build" || true
-          find "${GITHUB_WORKSPACE}/zmk/app/build" -maxdepth 3 -print 2>/dev/null || true
-
-          echo "---- zmk/build ----"
-          ls -la "${GITHUB_WORKSPACE}/zmk/build" || true
-          find "${GITHUB_WORKSPACE}/zmk/build" -maxdepth 3 -print 2>/dev/null || true
-
-          # stepは成功扱いにして後続のデバッグを必ず実行させる
+          # 常に後続デバッグへ進める
           exit 0
 
       - name: Debug Kconfig (PMW3610)
@@ -98,7 +78,7 @@ jobs:
           echo "===== BUILD_DIR ====="
           echo "${{ env.BUILD_DIR }}"
 
-          echo "===== LIST build/zephyr/include/generated ====="
+          echo "===== LIST zephyr/include/generated ====="
           ls -la "${{ env.BUILD_DIR }}/zephyr/include/generated" || true
 
           echo "===== Search __device_dts_ord_171 ====="
