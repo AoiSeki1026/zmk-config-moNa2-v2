@@ -32,7 +32,7 @@ jobs:
       # 4. west workspace 初期化（workspace = リポジトリ直下）
       - name: Init west workspace
         run: |
-          west init -l zmk/app .
+          west init -l zmk/app
           west update
 
       # 5. ビルド実行（ビルドディレクトリを固定して保存）
