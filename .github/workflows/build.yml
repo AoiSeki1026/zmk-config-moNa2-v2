@@ -10,11 +10,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. config リポジトリを checkout
       - name: Checkout config repository
         uses: actions/checkout@v4
 
-      # 2. ZMK 本体を checkout（v0.3.0 固定）
       - name: Checkout ZMK firmware (v0.3.0)
         uses: actions/checkout@v4
         with:
@@ -22,27 +20,27 @@ jobs:
           ref: v0.3.0
           path: zmk
 
-      # 3. Python / west の準備
-      - name: Install west and Python deps
+      - name: Install west
         run: |
           python3 -m pip install --upgrade pip
           python3 -m pip install west
           west --version
 
-      # 4. west workspace 初期化（workspace = リポジトリ直下）
-      - name: Init west workspace
+      # workspace root を zmk に固定して初期化
+      - name: Init west workspace (root=zmk)
         run: |
-          west init -l zmk/app
+          west init -l zmk/app zmk
+          cd zmk
           west update
 
-      # 5. ビルド実行（ビルドディレクトリを固定して保存）
       - name: Build firmware
         run: |
           BUILD_DIR="$(mktemp -d)"
           echo "BUILD_DIR=$BUILD_DIR" >> $GITHUB_ENV
 
+          cd zmk
           west build \
-            -s zmk/app \
+            -s app \
             -d "$BUILD_DIR" \
             -b seeeduino_xiao_ble \
             -S studio-rpc-usb-uart -- \
@@ -50,27 +48,17 @@ jobs:
             -DSHIELD="mona2_r;rgbled_adapter" \
             -DZMK_EXTRA_MODULES="${GITHUB_WORKSPACE}"
 
-      # 6. Kconfig 確認（PMW3610 が本当に有効か）
       - name: Debug Kconfig (PMW3610)
         if: failure() || always()
         run: |
-          echo "===== BUILD_DIR ====="
-          echo "$BUILD_DIR"
-
-          echo ""
           echo "===== CONFIG_PMW3610 ====="
           grep "^CONFIG_PMW3610" "$BUILD_DIR/zephyr/.config" || true
 
-      # 7. dts_ord_171 の正体を特定
       - name: Debug dts_ord_171 mapping
         if: failure() || always()
         run: |
-          echo "===== Search device_dts_ord_171 ====="
+          echo "===== Search __device_dts_ord_171 ====="
           grep -R --line-number "__device_dts_ord_171" "$BUILD_DIR/zephyr/include/generated" || true
-
-          echo ""
-          echo "===== Search dts_ord_171 in devicetree_generated.h ====="
-          grep -n "dts_ord_171" "$BUILD_DIR/zephyr/include/generated/devicetree_generated.h" || true
 
           echo ""
           echo "===== Context around dts_ord_171 ====="
