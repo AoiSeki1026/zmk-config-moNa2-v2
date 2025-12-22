@@ -36,11 +36,14 @@ jobs:
       # ビルド（BUILD_DIR は env に入れて後続 step で参照）
       - name: Build firmware
         run: |
-          BUILD_DIR="$(mktemp -d)"
+          BUILD_DIR="${GITHUB_WORKSPACE}/build"
+          rm -rf "$BUILD_DIR"
+          mkdir -p "$BUILD_DIR"
           echo "BUILD_DIR=$BUILD_DIR" >> $GITHUB_ENV
 
           cd zmk/app
           west build \
+            -p always \
             -s . \
             -d "$BUILD_DIR" \
             -b seeeduino_xiao_ble \
@@ -49,27 +52,32 @@ jobs:
             -DSHIELD="mona2_r;rgbled_adapter" \
             -DZMK_EXTRA_MODULES="${GITHUB_WORKSPACE}"
 
-      - name: Debug Kconfig (PMW3610)
-        if: failure() || always()
-        run: |
-          echo "===== BUILD_DIR ====="
-          echo "${{ env.BUILD_DIR }}"
+          echo "===== LIST BUILD_DIR ====="
+          ls -la "$BUILD_DIR"
+          echo "===== LIST BUILD_DIR/zephyr/include/generated ====="
+          ls -la "$BUILD_DIR/zephyr/include/generated" || true
 
-          echo "===== CONFIG_PMW3610 ====="
-          grep "^CONFIG_PMW3610" "${{ env.BUILD_DIR }}/zephyr/.config" || true
 
       - name: Debug dts_ord_171 mapping
         if: failure() || always()
         run: |
+          echo "===== BUILD_DIR ====="
+          echo "${{ env.BUILD_DIR }}"
+          ls -la "${{ env.BUILD_DIR }}/zephyr/include/generated" || true
+
           echo "===== Search __device_dts_ord_171 ====="
           grep -R --line-number "__device_dts_ord_171" "${{ env.BUILD_DIR }}/zephyr/include/generated" || true
 
           echo ""
           echo "===== Context around dts_ord_171 ====="
           file="${{ env.BUILD_DIR }}/zephyr/include/generated/devicetree_generated.h"
-          line=$(grep -n "dts_ord_171" "$file" | head -1 | cut -d: -f1 || true)
-          if [ -n "$line" ]; then
-            start=$((line-5)); if [ $start -lt 1 ]; then start=1; fi
-            end=$((line+5))
-            sed -n "${start},${end}p" "$file"
+          if [ -f "$file" ]; then
+            line=$(grep -n "dts_ord_171" "$file" | head -1 | cut -d: -f1 || true)
+            if [ -n "$line" ]; then
+              start=$((line-5)); if [ $start -lt 1 ]; then start=1; fi
+              end=$((line+5))
+              sed -n "${start},${end}p" "$file"
+            fi
+          else
+            echo "devicetree_generated.h not found at $file"
           fi
