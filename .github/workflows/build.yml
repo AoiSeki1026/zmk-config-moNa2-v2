@@ -32,15 +32,18 @@ jobs:
           cd zmk/app
           west update
 
-      - name: Build firmware
-        continue-on-error: true
+      - name: Build firmware (non-fatal, with diagnostics)
         run: |
+          set -x
+
           BUILD_DIR="${GITHUB_WORKSPACE}/build"
           rm -rf "$BUILD_DIR"
           mkdir -p "$BUILD_DIR"
           echo "BUILD_DIR=$BUILD_DIR" >> $GITHUB_ENV
 
           cd zmk/app
+
+          WEST_BUILD_RC=0
           west build \
             -p always \
             -s . \
@@ -49,31 +52,40 @@ jobs:
             -S studio-rpc-usb-uart -- \
             -DZMK_CONFIG="${GITHUB_WORKSPACE}/config" \
             -DSHIELD="mona2_r;rgbled_adapter" \
-            -DZMK_EXTRA_MODULES="${GITHUB_WORKSPACE}"
+            -DZMK_EXTRA_MODULES="${GITHUB_WORKSPACE}" \
+            || WEST_BUILD_RC=$?
 
-          WEST_BUILD_RC=$?
           echo "===== west build exit code ====="
           echo "$WEST_BUILD_RC"
 
           echo "===== PWD ====="
           pwd
 
-          echo "===== WEST BUILD DIR (expected) ====="
-          echo "$BUILD_DIR"
+          echo "===== LIST BUILD_DIR (ls) ====="
+          ls -la "$BUILD_DIR" || true
 
-          echo "===== LIST BUILD_DIR (recursive, top 3 levels) ====="
-          find "$BUILD_DIR" -maxdepth 3 -print || true
+          echo "===== LIST BUILD_DIR (find maxdepth 4) ====="
+          find "$BUILD_DIR" -maxdepth 4 -print || true
 
-          # propagate for later steps (still continue-on-error)
-          exit "$WEST_BUILD_RC"
+          echo "===== ALSO CHECK common fallback build dirs ====="
+          echo "---- zmk/app/build ----"
+          ls -la "${GITHUB_WORKSPACE}/zmk/app/build" || true
+          find "${GITHUB_WORKSPACE}/zmk/app/build" -maxdepth 3 -print 2>/dev/null || true
+
+          echo "---- zmk/build ----"
+          ls -la "${GITHUB_WORKSPACE}/zmk/build" || true
+          find "${GITHUB_WORKSPACE}/zmk/build" -maxdepth 3 -print 2>/dev/null || true
+
+          # stepは成功扱いにして後続のデバッグを必ず実行させる
+          exit 0
 
       - name: Debug Kconfig (PMW3610)
-        if: failure() || always()
+        if: always()
         run: |
           echo "===== BUILD_DIR ====="
           echo "${{ env.BUILD_DIR }}"
 
-          echo "===== CONFIG_PMW3610 (from .config) ====="
+          echo "===== CONFIG_PMW3610 ====="
           if [ -f "${{ env.BUILD_DIR }}/zephyr/.config" ]; then
             grep "^CONFIG_PMW3610" "${{ env.BUILD_DIR }}/zephyr/.config" || true
           else
@@ -81,7 +93,7 @@ jobs:
           fi
 
       - name: Debug dts_ord_171 mapping
-        if: failure() || always()
+        if: always()
         run: |
           echo "===== BUILD_DIR ====="
           echo "${{ env.BUILD_DIR }}"
