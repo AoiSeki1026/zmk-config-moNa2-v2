@@ -35,7 +35,26 @@ jobs:
             -DZMK_CONFIG="${GITHUB_WORKSPACE}/config" \
             -DSHIELD="mona2_r;rgbled_adapter" \
             -DZMK_EXTRA_MODULES="${GITHUB_WORKSPACE}"
+      - name: Debug dts_ord_171 mapping
+        if: failure() || always()
+        run: |
+          echo "===== Find __device_dts_ord_171 mapping ====="
+          grep -R --line-number "device_dts_ord_171" /tmp/tmp.*/zephyr/include/generated | head -50 || true
 
+          echo ""
+          echo "===== Find dts_ord_171 mapping (devicetree_generated.h) ====="
+          grep -R --line-number "dts_ord_171" /tmp/tmp.*/zephyr/include/generated/devicetree_generated.h | head -50 || true
+
+          echo ""
+          echo "===== Show relevant snippet around ord_171 ====="
+          f=$(grep -R --line-number "device_dts_ord_171" /tmp/tmp.*/zephyr/include/generated/devicetree_generated.h | head -1 | cut -d: -f1) || true
+          if [ -n "$f" ]; then
+            l=$(grep -n "device_dts_ord_171" "$f" | head -1 | cut -d: -f1)
+            start=$((l-5)); if [ $start -lt 1 ]; then start=1; fi
+            end=$((l+5))
+            echo "file=$f line=$l"
+            sed -n "${start},${end}p" "$f"
+          fi
       - name: Debug PMW3610 config and device ord
         if: failure() || always()
         run: |
