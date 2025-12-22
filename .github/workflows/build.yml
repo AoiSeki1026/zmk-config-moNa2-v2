@@ -26,10 +26,11 @@ jobs:
           python3 -m pip install west
           west --version
 
-      # workspace root を zmk に固定して初期化
       - name: Init west workspace (root=zmk)
         run: |
-          west init -l zmk/app zmk
+          # ここで zmk/.west が作られる
+          west init -l zmk/app
+          # 以降は必ず workspace root (zmk) の中で実行
           cd zmk
           west update
 
