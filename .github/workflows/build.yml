@@ -26,22 +26,22 @@ jobs:
           python3 -m pip install west
           west --version
 
-      - name: Init west workspace (root=zmk)
+      # west workspace 初期化
+      - name: Init west workspace
         run: |
-          # ここで zmk/.west が作られる
           west init -l zmk/app
-          # 以降は必ず workspace root (zmk) の中で実行
-          cd zmk
+          cd zmk/app
           west update
 
+      # ビルド（BUILD_DIR は env に入れて後続 step で参照）
       - name: Build firmware
         run: |
           BUILD_DIR="$(mktemp -d)"
           echo "BUILD_DIR=$BUILD_DIR" >> $GITHUB_ENV
 
-          cd zmk
+          cd zmk/app
           west build \
-            -s app \
+            -s . \
             -d "$BUILD_DIR" \
             -b seeeduino_xiao_ble \
             -S studio-rpc-usb-uart -- \
@@ -52,18 +52,21 @@ jobs:
       - name: Debug Kconfig (PMW3610)
         if: failure() || always()
         run: |
+          echo "===== BUILD_DIR ====="
+          echo "${{ env.BUILD_DIR }}"
+
           echo "===== CONFIG_PMW3610 ====="
-          grep "^CONFIG_PMW3610" "$BUILD_DIR/zephyr/.config" || true
+          grep "^CONFIG_PMW3610" "${{ env.BUILD_DIR }}/zephyr/.config" || true
 
       - name: Debug dts_ord_171 mapping
         if: failure() || always()
         run: |
           echo "===== Search __device_dts_ord_171 ====="
-          grep -R --line-number "__device_dts_ord_171" "$BUILD_DIR/zephyr/include/generated" || true
+          grep -R --line-number "__device_dts_ord_171" "${{ env.BUILD_DIR }}/zephyr/include/generated" || true
 
           echo ""
           echo "===== Context around dts_ord_171 ====="
-          file="$BUILD_DIR/zephyr/include/generated/devicetree_generated.h"
+          file="${{ env.BUILD_DIR }}/zephyr/include/generated/devicetree_generated.h"
           line=$(grep -n "dts_ord_171" "$file" | head -1 | cut -d: -f1 || true)
           if [ -n "$line" ]; then
             start=$((line-5)); if [ $start -lt 1 ]; then start=1; fi
