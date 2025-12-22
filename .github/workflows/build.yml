@@ -26,15 +26,14 @@ jobs:
           python3 -m pip install west
           west --version
 
-      # west workspace 初期化
       - name: Init west workspace
         run: |
           west init -l zmk/app
           cd zmk/app
           west update
 
-      # ビルド（BUILD_DIR は env に入れて後続 step で参照）
       - name: Build firmware
+        continue-on-error: true
         run: |
           BUILD_DIR="${GITHUB_WORKSPACE}/build"
           rm -rf "$BUILD_DIR"
@@ -52,17 +51,42 @@ jobs:
             -DSHIELD="mona2_r;rgbled_adapter" \
             -DZMK_EXTRA_MODULES="${GITHUB_WORKSPACE}"
 
-          echo "===== LIST BUILD_DIR ====="
-          ls -la "$BUILD_DIR"
-          echo "===== LIST BUILD_DIR/zephyr/include/generated ====="
-          ls -la "$BUILD_DIR/zephyr/include/generated" || true
+          WEST_BUILD_RC=$?
+          echo "===== west build exit code ====="
+          echo "$WEST_BUILD_RC"
 
+          echo "===== PWD ====="
+          pwd
+
+          echo "===== WEST BUILD DIR (expected) ====="
+          echo "$BUILD_DIR"
+
+          echo "===== LIST BUILD_DIR (recursive, top 3 levels) ====="
+          find "$BUILD_DIR" -maxdepth 3 -print || true
+
+          # propagate for later steps (still continue-on-error)
+          exit "$WEST_BUILD_RC"
+
+      - name: Debug Kconfig (PMW3610)
+        if: failure() || always()
+        run: |
+          echo "===== BUILD_DIR ====="
+          echo "${{ env.BUILD_DIR }}"
+
+          echo "===== CONFIG_PMW3610 (from .config) ====="
+          if [ -f "${{ env.BUILD_DIR }}/zephyr/.config" ]; then
+            grep "^CONFIG_PMW3610" "${{ env.BUILD_DIR }}/zephyr/.config" || true
+          else
+            echo "No .config at ${{ env.BUILD_DIR }}/zephyr/.config"
+          fi
 
       - name: Debug dts_ord_171 mapping
         if: failure() || always()
         run: |
           echo "===== BUILD_DIR ====="
           echo "${{ env.BUILD_DIR }}"
+
+          echo "===== LIST build/zephyr/include/generated ====="
           ls -la "${{ env.BUILD_DIR }}/zephyr/include/generated" || true
 
           echo "===== Search __device_dts_ord_171 ====="
@@ -77,6 +101,8 @@ jobs:
               start=$((line-5)); if [ $start -lt 1 ]; then start=1; fi
               end=$((line+5))
               sed -n "${start},${end}p" "$file"
+            else
+              echo "No dts_ord_171 found in $file"
             fi
           else
             echo "devicetree_generated.h not found at $file"
