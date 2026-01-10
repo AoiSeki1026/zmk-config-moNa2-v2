@@ -46,7 +46,7 @@
     pinctrl-names = "default", "sleep";
     cs-gpios = <&gpio0 9 GPIO_ACTIVE_LOW>;  //P0.09を指定(CS)
 
-    trackball_central: trackball_central@0 {
+    trackball_cenforce-awaketral: trackball_central@0 {
         status = "okay";
         compatible = "pixart,pmw3610-alt";  //トラボセンサ用のドライバとバインド
         reg = <0>;
@@ -59,6 +59,8 @@
         evt-type = <INPUT_EV_REL>;
         x-input-code = <INPUT_REL_X>;
         y-input-code = <INPUT_REL_Y>;
+        force-awake;
+        force-awake-4ms-mode;
     };
 };
 
