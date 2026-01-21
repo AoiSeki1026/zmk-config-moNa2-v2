@@ -24,14 +24,76 @@
     combos {
         compatible = "zmk,combos";
 
-        layer4_ESC {
-            bindings = <&lt 3 ESC>;
-            key-positions = <39 38>;
+        esc {
+            bindings = <&kp ESC>;
+            key-positions = <0 1>;
         };
 
         tab {
             bindings = <&kp TAB>;
+            key-positions = <3 4>;
+        };
+
+        home {
+            bindings = <&kp HOME>;
+            key-positions = <5 6>;
+        };
+
+        end {
+            bindings = <&kp END>;
+            key-positions = <28 29>;
+        };
+
+        semicolon {
+            bindings = <&kp SEMICOLON>;
+            key-positions = <19 20>;
+        };
+
+        colon {
+            bindings = <&kp COLON>;
+            key-positions = <18 19>;
+        };
+
+        delete_word {
+            bindings = <&kp LC(BACKSPACE)>;
+            key-positions = <9 8>;
+        };
+
+        delete {
+            bindings = <&kp DEL>;
+            key-positions = <31 32>;
+        };
+
+        caps_word_toggle {
+            bindings = <&kp LS(CAPSLOCK)>;
+            key-positions = <1 2 3>;
+        };
+
+        parentheses {
+            bindings = <&ParentHeses>;
             key-positions = <11 12>;
+        };
+
+        brackets {
+            bindings = <&Brackets>;
+            key-positions = <12 13>;
+        };
+
+        curlybrackets {
+            bindings = <&Curlybrackets>;
+            key-positions = <13 11>;
+        };
+
+        arrowL {
+            bindings = <&ArrowL>;
+            key-positions = <11 12>;
+            layers = <1>;
+        };
+
+        arrowR {
+            bindings = <&ArrowR>;
+            key-positions = <12 13>;
+            layers = <1>;
         };
     };
 
@@ -41,6 +103,41 @@
             #binding-cells = <1>;
             bindings = <&to 0 &macro_param_1to1 &kp MACRO_PLACEHOLDER>;
             label = "TO_LAYER_0";
+        };
+
+        ArrowR: ArrowR {
+            compatible = "zmk,behavior-macro";
+            #binding-cells = <0>;
+            bindings = <&kp MINUS &kp GT>;
+            label = "ARROWR";
+        };
+
+        ArrowL: ArrowL {
+            compatible = "zmk,behavior-macro";
+            #binding-cells = <0>;
+            bindings = <&kp LT &kp MINUS>;
+            label = "ARROWL";
+        };
+
+        ParentHeses: ParentHeses {
+            compatible = "zmk,behavior-macro";
+            #binding-cells = <0>;
+            bindings = <&kp LPAR &kp RPAR &kp LEFT>;
+            label = "PARENTHESES";
+        };
+
+        Brackets: Brackets {
+            compatible = "zmk,behavior-macro";
+            #binding-cells = <0>;
+            bindings = <&kp LBRC &kp RBRC &kp LEFT>;
+            label = "BRACKETS";
+        };
+
+        Curlybrackets: new_macro {
+            compatible = "zmk,behavior-macro";
+            #binding-cells = <0>;
+            bindings = <&kp LBKT &kp RBKT &kp LEFT>;
+            label = "NEW_MACRO";
         };
     };
 
