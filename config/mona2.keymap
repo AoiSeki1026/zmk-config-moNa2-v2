@@ -5,213 +5,164 @@
 #include <dt-bindings/zmk/bt.h>
 #include <dt-bindings/zmk/keys.h>
 #include <dt-bindings/zmk/pointing.h>
+#include <dt-bindings/zmk/outputs.h>
 
 #define ZMK_POINTING_DEFAULT_SCRL_VAL 100
-#define MOUSE 5
-#define SCROLL 6
 
+/*
+ * ==========================================================================
+ * moNa2 keymap  (keyball39 QMK -> ZMK 移植版 / JIS配列)
+ *
+ * 物理キー位置番号 (combos の key-positions で使用):
+ *   0  1  2  3  4            5  6  7  8  9
+ *   10 11 12 13 14   15      16 17 18 19 20
+ *   21 22 23 24 25   26  27  28 29 30 31 32
+ *   33 34 35 36 37   38  39  40                41
+ *
+ *   ※ 15 / 26 / 27 が keyball39 には無い「増設キー(+3)」。
+ *   ※ 34 / 35 は keyball39 では base が空きの親指キー(L1で ' ")。
+ * ==========================================================================
+ */
+
+/* 通常の mod-tap / layer-tap の共通設定
+ * require-prior-idle-ms = QMK の Flow Tap 相当 (直前打鍵から一定時間内はタップ確定)。
+ * 値は QMK の FLOW_TAP_TERM に合わせて要調整 (まずは 150 で様子見)。 */
 &mt {
     flavor = "balanced";
+    tapping-term-ms = <200>;
     quick-tap-ms = <0>;
+    require-prior-idle-ms = <150>;
 };
 
 &lt {
-    quick-tap-ms = <300>;
     flavor = "balanced";
+    tapping-term-ms = <200>;
+    quick-tap-ms = <300>;
+    require-prior-idle-ms = <150>;
 };
 
 / {
-    combos {
-        compatible = "zmk,combos";
-
-        esc {
-            bindings = <&kp ESC>;
-            key-positions = <0 1>;
+    behaviors {
+        /* 小指 (A / -) 専用: QMK の get_tapping_term で 300ms にしていた分 */
+        mt_pinky: mod_tap_pinky {
+            compatible = "zmk,behavior-hold-tap";
+            #binding-cells = <2>;
+            flavor = "balanced";
+            tapping-term-ms = <300>;
+            quick-tap-ms = <0>;
+            require-prior-idle-ms = <150>;
+            bindings = <&kp>, <&kp>;
         };
 
-        tab {
-            bindings = <&kp TAB>;
-            key-positions = <3 4>;
+        /* トラックボール用センサ回転 (エンコーダがある場合のみ意味あり) */
+        scroll_up_down: scroll_up_down {
+            compatible = "zmk,behavior-sensor-rotate";
+            #sensor-binding-cells = <0>;
+            bindings = <&msc SCRL_UP>, <&msc SCRL_DOWN>;
+            tap-ms = <20>;
         };
-
-        home {
-            bindings = <&kp HOME>;
-            key-positions = <5 6>;
-        };
-
-        end {
-            bindings = <&kp END>;
-            key-positions = <28 29>;
-        };
-
-        semicolon {
-            bindings = <&kp SEMICOLON>;
-            key-positions = <19 20>;
-        };
-
-        colon {
-            bindings = <&kp COLON>;
-            key-positions = <18 19>;
-        };
-
-        delete_word {
-            bindings = <&kp LC(BACKSPACE)>;
-            key-positions = <9 8>;
-        };
-
-        delete {
-            bindings = <&kp DEL>;
-            key-positions = <31 32>;
-        };
-
-        caps_word_toggle {
-            bindings = <&kp LS(CAPSLOCK)>;
-            key-positions = <1 2 3>;
-        };
-
-        parentheses {
-            bindings = <&ParentHeses>;
-            key-positions = <11 12>;
-        };
-
-        brackets {
-            bindings = <&Brackets>;
-            key-positions = <12 13>;
-        };
-
-        curlybrackets {
-            bindings = <&Curlybrackets>;
-            key-positions = <13 11>;
-        };
-
-        arrowL {
-            bindings = <&ArrowL>;
-            key-positions = <11 12>;
-            layers = <1>;
-        };
-
-        arrowR {
-            bindings = <&ArrowR>;
-            key-positions = <12 13>;
-            layers = <1>;
+        scroll_right_left: scroll_right_left {
+            compatible = "zmk,behavior-sensor-rotate";
+            #sensor-binding-cells = <0>;
+            bindings = <&msc SCRL_LEFT>, <&msc SCRL_RIGHT>;
+            tap-ms = <20>;
         };
     };
 
     macros {
-        to_layer_0: to_layer_0 {
-            compatible = "zmk,behavior-macro-one-param";
-            #binding-cells = <1>;
-            bindings = <&to 0 &macro_param_1to1 &kp MACRO_PLACEHOLDER>;
-            label = "TO_LAYER_0";
-        };
-
-        ArrowR: ArrowR {
+        /* QMK の ACTION combo を ZMK マクロ化 (HID を完全一致させて JIS で再現) */
+        ArrowL: ArrowL {            /* "->"  : QMK ArrowL_send = KC_MINUS, S(KC_DOT) */
             compatible = "zmk,behavior-macro";
             #binding-cells = <0>;
-            bindings = <&kp MINUS &kp GT>;
-            label = "ARROWR";
+            bindings = <&kp MINUS &kp LS(DOT)>;
         };
-
-        ArrowL: ArrowL {
+        ArrowR: ArrowR {            /* "<-"  : QMK ArrowR_send = S(KC_COMMA), KC_MINUS */
             compatible = "zmk,behavior-macro";
             #binding-cells = <0>;
-            bindings = <&kp LT &kp MINUS>;
-            label = "ARROWL";
+            bindings = <&kp LS(COMMA) &kp MINUS>;
         };
-
-        ParentHeses: ParentHeses {
+        ParentHeses: ParentHeses {  /* ()<-  : QMK S(KC_8) S(KC_9) KC_LEFT */
             compatible = "zmk,behavior-macro";
             #binding-cells = <0>;
-            bindings = <&kp LPAR &kp RPAR &kp LEFT>;
-            label = "PARENTHESES";
+            bindings = <&kp LS(N8) &kp LS(N9) &kp LEFT>;
         };
-
-        Brackets: Brackets {
+        Brackets: Brackets {        /* QMK KC_RBRC KC_BSLS KC_LEFT */
             compatible = "zmk,behavior-macro";
             #binding-cells = <0>;
-            bindings = <&kp LBRC &kp RBRC &kp LEFT>;
-            label = "BRACKETS";
+            bindings = <&kp RBKT &kp BSLH &kp LEFT>;
         };
-
-        Curlybrackets: new_macro {
+        Curlybrackets: Curlybrackets {  /* QMK S(KC_RBRC) S(KC_BSLS) KC_LEFT */
             compatible = "zmk,behavior-macro";
             #binding-cells = <0>;
-            bindings = <&kp LBKT &kp RBKT &kp LEFT>;
-            label = "NEW_MACRO";
+            bindings = <&kp LS(RBKT) &kp LS(BSLH) &kp LEFT>;
         };
     };
 
-    behaviors {
-        lt_to_layer_0: lt_to_layer_0 {
-            compatible = "zmk,behavior-hold-tap";
-            label = "LAYER_TAP_TO_0";
-            bindings = <&mo>, <&to_layer_0>;
+    combos {
+        compatible = "zmk,combos";
 
-            #binding-cells = <2>;
-            tapping-term-ms = <200>;
-        };
+        /* ---- base (layer 0) ---- */
+        combo_tab     { key-positions = <3 4>;    bindings = <&kp TAB>;       timeout-ms = <40>; layers = <0>; }; /* R+T */
+        combo_home    { key-positions = <5 6>;    bindings = <&kp HOME>;      timeout-ms = <40>; layers = <0>; }; /* Y+U */
+        combo_end     { key-positions = <28 29>;  bindings = <&kp END>;       timeout-ms = <40>; layers = <0>; }; /* N+M */
+        combo_semi    { key-positions = <19 20>;  bindings = <&kp SEMICOLON>; timeout-ms = <40>; layers = <0>; }; /* L+- -> ; */
+        combo_colon   { key-positions = <18 19>;  bindings = <&kp SQT>;       timeout-ms = <40>; layers = <0>; }; /* K+L -> : (JIS) */
+        combo_delword { key-positions = <8 9>;    bindings = <&kp LC(BSPC)>;  timeout-ms = <40>; layers = <0>; }; /* O+P */
+        combo_del     { key-positions = <31 32>;  bindings = <&kp DEL>;       timeout-ms = <40>; layers = <0>; }; /* .+/ */
+        combo_caps    { key-positions = <1 2 3>;  bindings = <&caps_word>;    timeout-ms = <40>; layers = <0>; }; /* W+E+R */
+        combo_paren   { key-positions = <11 12>;  bindings = <&ParentHeses>;  timeout-ms = <50>; layers = <0>; }; /* S+D */
+        combo_brkt    { key-positions = <12 13>;  bindings = <&Brackets>;     timeout-ms = <50>; layers = <0>; }; /* D+F */
+        combo_cbrkt   { key-positions = <11 13>;  bindings = <&Curlybrackets>;timeout-ms = <50>; layers = <0>; }; /* S+F */
 
-        scroll_up_down: mouse_wheel_up_down {
-            compatible = "zmk,behavior-sensor-rotate";
-            #sensor-binding-cells = <0>;
-            bindings = <&msc SCRL_UP>, <&msc SCRL_DOWN>;
-
-            tap-ms = <20>;
-        };
-
-        scroll_right_left: mouse_wheel_right_left {
-            compatible = "zmk,behavior-sensor-rotate";
-            #sensor-binding-cells = <0>;
-            bindings = <&msc SCRL_LEFT>, <&msc SCRL_RIGHT>;
-
-            tap-ms = <20>;
-        };
+        /* ---- layer 1 (arrows) ---- */
+        combo_arrowL  { key-positions = <11 12>;  bindings = <&ArrowL>; timeout-ms = <50>; layers = <1>; }; /* S+D -> "->" */
+        combo_arrowR  { key-positions = <12 13>;  bindings = <&ArrowR>; timeout-ms = <50>; layers = <1>; }; /* D+F -> "<-" */
     };
 
     keymap {
         compatible = "zmk,keymap";
 
+        /* ====================== Layer 0 (Base) ====================== */
         default_layer {
             bindings = <
-&lt 3 Q           &kp W           &kp E        &kp R             &kp T                                    &kp Y        &kp U              &kp I        &kp O            &lt 3 P
-&mt LEFT_WIN A    &mt LEFT_ALT S  &mt LCTRL D  &mt LEFT_SHIFT F  &lt 1 G                    &bt BT_SEL 0  &lt 1 H      &mt RIGHT_SHIFT J  &mt RCTRL K  &mt RIGHT_ALT L  &mt RIGHT_WIN MINUS
-&mt LEFT_SHIFT Z  &kp X           &kp C        &kp V             &kp B      &bt BT_SEL 1    &tog 2        &kp N        &kp M              &kp COMMA    &kp DOT          &kp SLASH
-&kp TAB           &kp LEFT_WIN    &kp F16      &kp GRAVE         &kp SPACE  &mkp MB1        &mkp MB2      &lt 1 ENTER                                                   &kp BACKSPACE
+&lt 3 Q             &kp W           &kp E        &kp R             &kp T                                      &kp Y    &kp U              &kp I        &kp O            &kp P
+&mt_pinky LWIN A    &mt LALT S      &mt LCTRL D  &mt LSHFT F       &lt 1 G                      &mo 2         &lt 1 H  &mt RSHFT J        &mt RCTRL K  &mt RALT L       &mt_pinky RWIN MINUS
+&kp Z               &kp X           &kp C        &kp V             &lt 2 B    &mo 3             &trans        &lt 2 N  &kp M              &kp COMMA    &kp DOT          &kp SLASH
+&kp TAB             &kp LANG2       &kp LANG1    &lt 1 GRAVE       &kp SPACE  &mkp LCLK         &mkp RCLK     &lt 2 ENTER                                              &kp BACKSPACE
             >;
-
             sensor-bindings = <&scroll_up_down>;
         };
 
+        /* ====================== Layer 1 (num / nav / sym) ====================== */
         layer_1 {
             bindings = <
-&kp EXCLAMATION  &kp NUMBER_7  &kp NUMBER_8       &kp NUMBER_9  &kp PLUS                        &kp C_AC_HOME  &kp END   &kp UP_ARROW  &trans     &kp AT_SIGN
-&kp AMPERSAND    &kp NUMBER_4  &kp NUMBER_5       &kp NUMBER_6  &kp NUMBER_0            &trans  &kp PAGE_UP    &kp LEFT  &kp DOWN      &kp RIGHT  &kp COLON
-&kp PIPE         &kp NUMBER_1  &kp NUMBER_2       &kp NUMBER_3  &kp ASTERISK  &trans    &trans  &kp PAGE_DOWN  &trans    &trans        &trans     &kp PIPE
-&kp HASH         &kp SQT       &kp DOUBLE_QUOTES  &trans        &trans        &trans    &trans  &trans                                            &trans
+&kp LS(N1)  &kp N7      &kp N8      &kp N9      &kp LS(SEMI)                          &kp HOME    &kp END   &kp UP    &trans     &kp LBKT
+&kp LS(N6)  &kp N4      &kp N5      &kp N6      &kp N0                      &trans     &kp PG_UP   &kp LEFT  &kp DOWN  &kp RIGHT  &kp SQT
+&kp LS(INT3)&kp N1      &kp N2      &kp N3      &kp LS(SQT)  &trans         &trans     &kp PG_DN   &trans    &trans     &trans    &kp INT1
+&kp LS(N3)  &kp LS(N7)  &kp LS(N2)  &trans      &trans       &trans         &trans     &to 0                                       &trans
             >;
-
             sensor-bindings = <&scroll_right_left>;
         };
 
+        /* ====================== Layer 2 (F-keys / mouse) ====================== */
         layer_2 {
             bindings = <
-&kp ESC      &kp F7  &kp F8  &kp F9  &kp F10                     &mkp MB5  &kp PG_UP  &kp PG_DN  &trans    &kp RC(PLUS)
-&kp TAB      &kp F4  &kp F5  &kp F6  &kp F11             &trans  &mkp MB4  &mkp MB1   &mkp MB3   &mkp MB2  &kp RC(MINUS)
-&kp LS(TAB)  &kp F1  &kp F2  &kp F3  &kp F12  &kp F13    &trans  &trans    &trans     &trans     &trans    &trans
-&trans       &trans  &trans  &trans  &trans   &trans     &trans  &trans                                    &trans
+&kp ESC     &kp F7  &kp F8  &kp F9  &kp F10                       &mkp MB5  &trans     &kp PG_UP  &trans    &kp LC(KP_PLUS)
+&kp TAB     &kp F4  &kp F5  &kp F6  &kp F11             &trans    &mkp MB4  &mkp LCLK  &mkp MCLK  &mkp RCLK &kp LC(KP_MINUS)
+&kp LS(TAB) &kp F1  &kp F2  &kp F3  &kp F12  &trans     &trans    &trans    &trans     &kp PG_DN  &trans    &trans
+&trans      &trans  &trans  &trans  &trans   &trans     &trans    &trans                                    &trans
             >;
-
             sensor-bindings = <&scroll_up_down>;
         };
 
+        /* ====================== Layer 3 (BT / system) ====================== */
         layer_3 {
             bindings = <
-&trans  &trans  &trans  &trans  &trans                         &bt BT_SEL 0  &bt BT_SEL 1  &bt BT_SEL 2  &bt BT_SEL 3  &bt BT_SEL 4
-&trans  &trans  &trans  &trans  &trans            &trans       &trans        &trans        &trans        &trans        &trans
-&trans  &trans  &trans  &trans  &trans  &trans    &bootloader  &trans        &trans        &trans        &trans        &bt BT_CLR
-&trans  &trans  &trans  &trans  &trans  &trans    &trans       &trans                                                  &bt BT_CLR_ALL
+&out OUT_TOG  &sys_reset  &trans  &trans  &trans                        &bt BT_SEL 0  &bt BT_SEL 1  &bt BT_SEL 2  &bt BT_SEL 3  &bt BT_SEL 4
+&trans        &trans      &trans  &trans  &trans          &trans        &trans        &trans        &trans        &trans        &trans
+&trans        &trans      &trans  &trans  &trans  &trans  &bootloader   &trans        &trans        &trans        &trans        &bt BT_CLR
+&trans        &trans      &trans  &trans  &trans  &trans  &trans        &trans                                                  &bt BT_CLR_ALL
             >;
-
             sensor-bindings = <&scroll_up_down>;
         };
     };
