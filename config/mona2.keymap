@@ -21,12 +21,21 @@
  *
  *   ※ 15 / 26 / 27 が keyball39 には無い「増設キー(+3)」。
  *   ※ 34 / 35 は keyball39 では base が空きの親指キー(L1で ' ")。
+ *
+ *   ★ 今回の追加（既存は保持）:
+ *      (1) Python/C#/C++ 向け記号コンボ（JIS-HID準拠）
+ *      (2) Home Row Mods の bilateral 化（hml/hmr/mt_pinky_l/r）
+ *      (4) 音声レイヤー(layer 4): F13〜F18 を Talon/Wispr Flow 側に割当
  * ==========================================================================
  */
 
+/* ★(2) bilateral 判定用の左右キー群（反対の手のキーが押された時だけ hold） */
+#define KEYS_L  0 1 2 3 4    10 11 12 13 14   21 22 23 24 25   33 34 35 36 37
+#define KEYS_R  5 6 7 8 9    16 17 18 19 20   28 29 30 31 32   38 39 40 41
+#define KEYS_C  15 26 27
+
 /* 通常の mod-tap / layer-tap の共通設定
- * require-prior-idle-ms = QMK の Flow Tap 相当 (直前打鍵から一定時間内はタップ確定)。
- * 値は QMK の FLOW_TAP_TERM に合わせて要調整 (まずは 150 で様子見)。 */
+ * require-prior-idle-ms = QMK の Flow Tap 相当 (直前打鍵から一定時間内はタップ確定)。 */
 &mt {
     flavor = "balanced";
     tapping-term-ms = <200>;
@@ -43,7 +52,7 @@
 
 / {
     behaviors {
-        /* 小指 (A / -) 専用: QMK の get_tapping_term で 300ms にしていた分 */
+        /* 旧 mt_pinky (bilateral 非対応)。下の _l/_r に置換済みだが、戻せるよう残置。 */
         mt_pinky: mod_tap_pinky {
             compatible = "zmk,behavior-hold-tap";
             #binding-cells = <2>;
@@ -54,7 +63,55 @@
             bindings = <&kp>, <&kp>;
         };
 
-        /* トラックボール用センサ回転 (エンコーダがある場合のみ意味あり) */
+        /* ★(2) Home Row Mods: 左手用（反対=右手+中央キーでのみ hold 成立） */
+        hml: home_row_mod_left {
+            compatible = "zmk,behavior-hold-tap";
+            #binding-cells = <2>;
+            flavor = "balanced";
+            tapping-term-ms = <200>;
+            quick-tap-ms = <0>;
+            require-prior-idle-ms = <150>;
+            hold-trigger-key-positions = <KEYS_R KEYS_C>;
+            hold-trigger-on-release;
+            bindings = <&kp>, <&kp>;
+        };
+        /* ★(2) Home Row Mods: 右手用 */
+        hmr: home_row_mod_right {
+            compatible = "zmk,behavior-hold-tap";
+            #binding-cells = <2>;
+            flavor = "balanced";
+            tapping-term-ms = <200>;
+            quick-tap-ms = <0>;
+            require-prior-idle-ms = <150>;
+            hold-trigger-key-positions = <KEYS_L KEYS_C>;
+            hold-trigger-on-release;
+            bindings = <&kp>, <&kp>;
+        };
+        /* ★(2) 小指 (A / -) 専用: 300ms + bilateral */
+        mt_pinky_l: mod_tap_pinky_left {
+            compatible = "zmk,behavior-hold-tap";
+            #binding-cells = <2>;
+            flavor = "balanced";
+            tapping-term-ms = <300>;
+            quick-tap-ms = <0>;
+            require-prior-idle-ms = <150>;
+            hold-trigger-key-positions = <KEYS_R KEYS_C>;
+            hold-trigger-on-release;
+            bindings = <&kp>, <&kp>;
+        };
+        mt_pinky_r: mod_tap_pinky_right {
+            compatible = "zmk,behavior-hold-tap";
+            #binding-cells = <2>;
+            flavor = "balanced";
+            tapping-term-ms = <300>;
+            quick-tap-ms = <0>;
+            require-prior-idle-ms = <150>;
+            hold-trigger-key-positions = <KEYS_L KEYS_C>;
+            hold-trigger-on-release;
+            bindings = <&kp>, <&kp>;
+        };
+
+        /* トラックボール用センサ回転 */
         scroll_up_down: scroll_up_down {
             compatible = "zmk,behavior-sensor-rotate";
             #sensor-binding-cells = <0>;
@@ -70,38 +127,78 @@
     };
 
     macros {
-        /* QMK の ACTION combo を ZMK マクロ化 (HID を完全一致させて JIS で再現) */
-        ArrowL: ArrowL {            /* "->"  : QMK ArrowL_send = KC_MINUS, S(KC_DOT) */
+        /* ===== 既存マクロ（保持・変更なし） ===== */
+        ArrowL: ArrowL {            /* "->"  : KC_MINUS, S(KC_DOT) */
             compatible = "zmk,behavior-macro";
             #binding-cells = <0>;
             bindings = <&kp MINUS &kp LS(DOT)>;
         };
-        ArrowR: ArrowR {            /* "<-"  : QMK ArrowR_send = S(KC_COMMA), KC_MINUS */
+        ArrowR: ArrowR {            /* "<-"  : S(KC_COMMA), KC_MINUS */
             compatible = "zmk,behavior-macro";
             #binding-cells = <0>;
             bindings = <&kp LS(COMMA) &kp MINUS>;
         };
-        ParentHeses: ParentHeses {  /* ()<-  : QMK S(KC_8) S(KC_9) KC_LEFT */
+        ParentHeses: ParentHeses {  /* "()<-" : S(KC_8) S(KC_9) KC_LEFT */
             compatible = "zmk,behavior-macro";
             #binding-cells = <0>;
             bindings = <&kp LS(N8) &kp LS(N9) &kp LEFT>;
         };
-        Brackets: Brackets {        /* QMK KC_RBRC KC_BSLS KC_LEFT */
+        Brackets: Brackets {        /* "[]<-" : KC_RBRC KC_BSLS KC_LEFT */
             compatible = "zmk,behavior-macro";
             #binding-cells = <0>;
             bindings = <&kp RBKT &kp BSLH &kp LEFT>;
         };
-        Curlybrackets: Curlybrackets {  /* QMK S(KC_RBRC) S(KC_BSLS) KC_LEFT */
+        Curlybrackets: Curlybrackets {  /* "{}<-" : S(KC_RBRC) S(KC_BSLS) KC_LEFT */
             compatible = "zmk,behavior-macro";
             #binding-cells = <0>;
             bindings = <&kp LS(RBKT) &kp LS(BSLH) &kp LEFT>;
         };
+
+        /* ===== ★(1) 追加: コーディング記号マクロ（JIS-HID準拠） =====
+         * JIS対応の根拠（既存マクロと同じ流儀でHIDを直接送出）:
+         *   =  ->  LS(MINUS)     >  -> LS(DOT)     <  -> LS(COMMA)
+         *   !  ->  LS(N1)        &  -> LS(N6)      |  -> LS(INT3)
+         *   :  ->  SQT           *  -> LS(SQT)     ?  -> LS(SLASH)
+         */
+        m_eq2:   m_eq2   { compatible="zmk,behavior-macro"; #binding-cells=<0>;
+            bindings = <&kp LS(MINUS) &kp LS(MINUS)>; };          /* ==  */
+        m_neq:   m_neq   { compatible="zmk,behavior-macro"; #binding-cells=<0>;
+            bindings = <&kp LS(N1) &kp LS(MINUS)>; };             /* !=  */
+        m_geq:   m_geq   { compatible="zmk,behavior-macro"; #binding-cells=<0>;
+            bindings = <&kp LS(DOT) &kp LS(MINUS)>; };            /* >=  */
+        m_leq:   m_leq   { compatible="zmk,behavior-macro"; #binding-cells=<0>;
+            bindings = <&kp LS(COMMA) &kp LS(MINUS)>; };          /* <=  */
+        m_fatarrow: m_fatarrow { compatible="zmk,behavior-macro"; #binding-cells=<0>;
+            bindings = <&kp LS(MINUS) &kp LS(DOT)>; };            /* =>  (C# lambda) */
+        m_and2:  m_and2  { compatible="zmk,behavior-macro"; #binding-cells=<0>;
+            bindings = <&kp LS(N6) &kp LS(N6)>; };                /* &&  */
+        m_or2:   m_or2   { compatible="zmk,behavior-macro"; #binding-cells=<0>;
+            bindings = <&kp LS(INT3) &kp LS(INT3)>; };            /* ||  */
+        m_scope: m_scope { compatible="zmk,behavior-macro"; #binding-cells=<0>;
+            bindings = <&kp SQT &kp SQT>; };                      /* ::  (C++ scope) */
+
+        /* --- ★(1) 追加(任意): デフォルトでは下のコンボをコメントアウトで無効。
+         *         使うときだけ combos 側の対応行を有効化。 --- */
+        m_walrus: m_walrus { compatible="zmk,behavior-macro"; #binding-cells=<0>;
+            bindings = <&kp SQT &kp LS(MINUS)>; };                /* :=  (Python walrus) */
+        m_pow:   m_pow   { compatible="zmk,behavior-macro"; #binding-cells=<0>;
+            bindings = <&kp LS(SQT) &kp LS(SQT)>; };              /* **  (Python) */
+        m_shl:   m_shl   { compatible="zmk,behavior-macro"; #binding-cells=<0>;
+            bindings = <&kp LS(COMMA) &kp LS(COMMA)>; };          /* <<  (C++ stream) */
+        m_shr:   m_shr   { compatible="zmk,behavior-macro"; #binding-cells=<0>;
+            bindings = <&kp LS(DOT) &kp LS(DOT)>; };              /* >>  (C++ stream) */
+        m_angle: m_angle { compatible="zmk,behavior-macro"; #binding-cells=<0>;
+            bindings = <&kp LS(COMMA) &kp LS(DOT) &kp LEFT>; };   /* <>  generics/template, カーソル内側 */
+        m_coalesce: m_coalesce { compatible="zmk,behavior-macro"; #binding-cells=<0>;
+            bindings = <&kp LS(SLASH) &kp LS(SLASH)>; };          /* ??  (C# null合体) */
+        m_safecall: m_safecall { compatible="zmk,behavior-macro"; #binding-cells=<0>;
+            bindings = <&kp LS(SLASH) &kp DOT>; };                /* ?.  (C# null条件) */
     };
 
     combos {
         compatible = "zmk,combos";
 
-        /* ---- base (layer 0) ---- */
+        /* ===== 既存コンボ（保持・変更なし） ===== */
         combo_tab     { key-positions = <3 4>;    bindings = <&kp TAB>;       timeout-ms = <40>; layers = <0>; }; /* R+T */
         combo_home    { key-positions = <5 6>;    bindings = <&kp HOME>;      timeout-ms = <40>; layers = <0>; }; /* Y+U */
         combo_end     { key-positions = <28 29>;  bindings = <&kp END>;       timeout-ms = <40>; layers = <0>; }; /* N+M */
@@ -110,25 +207,48 @@
         combo_delword { key-positions = <8 9>;    bindings = <&kp LC(BSPC)>;  timeout-ms = <40>; layers = <0>; }; /* O+P */
         combo_del     { key-positions = <31 32>;  bindings = <&kp DEL>;       timeout-ms = <40>; layers = <0>; }; /* .+/ */
         combo_caps    { key-positions = <1 2 3>;  bindings = <&caps_word>;    timeout-ms = <40>; layers = <0>; }; /* W+E+R */
-        combo_paren   { key-positions = <11 12>;  bindings = <&ParentHeses>;  timeout-ms = <50>; layers = <0>; }; /* S+D */
-        combo_brkt    { key-positions = <12 13>;  bindings = <&Brackets>;     timeout-ms = <50>; layers = <0>; }; /* D+F */
-        combo_cbrkt   { key-positions = <11 13>;  bindings = <&Curlybrackets>;timeout-ms = <50>; layers = <0>; }; /* S+F */
+        combo_paren   { key-positions = <11 12>;  bindings = <&ParentHeses>;  timeout-ms = <50>; layers = <0>; }; /* S+D -> () */
+        combo_brkt    { key-positions = <12 13>;  bindings = <&Brackets>;     timeout-ms = <50>; layers = <0>; }; /* D+F -> [] */
+        combo_cbrkt   { key-positions = <11 13>;  bindings = <&Curlybrackets>;timeout-ms = <50>; layers = <0>; }; /* S+F -> {} */
+        combo_arrowL  { key-positions = <11 12>;  bindings = <&ArrowL>; timeout-ms = <50>; layers = <1>; };       /* S+D -> "->" */
+        combo_arrowR  { key-positions = <12 13>;  bindings = <&ArrowR>; timeout-ms = <50>; layers = <1>; };       /* D+F -> "<-" */
 
-        /* ---- layer 1 (arrows) ---- */
-        combo_arrowL  { key-positions = <11 12>;  bindings = <&ArrowL>; timeout-ms = <50>; layers = <1>; }; /* S+D -> "->" */
-        combo_arrowR  { key-positions = <12 13>;  bindings = <&ArrowR>; timeout-ms = <50>; layers = <1>; }; /* D+F -> "<-" */
+        /* ===== ★(1) 追加コンボ（core: 優先 Python>C#>C++ で頻出のもの） =====
+         * 配置方針: 既存と衝突しない位置を選択。右上=比較系 / 左下=論理・C++系。
+         * 誤爆するペアがあれば key-positions を空き番号に移すか timeout を下げる。 */
+        combo_eq2     { key-positions = <6 7>;    bindings = <&m_eq2>;      timeout-ms = <40>; layers = <0>; }; /* U+I -> == */
+        combo_neq     { key-positions = <7 8>;    bindings = <&m_neq>;      timeout-ms = <40>; layers = <0>; }; /* I+O -> != */
+        combo_geq     { key-positions = <16 17>;  bindings = <&m_geq>;      timeout-ms = <40>; layers = <0>; }; /* H+J -> >= */
+        combo_leq     { key-positions = <17 18>;  bindings = <&m_leq>;      timeout-ms = <40>; layers = <0>; }; /* J+K -> <= */
+        combo_fatarw  { key-positions = <21 22>;  bindings = <&m_fatarrow>; timeout-ms = <40>; layers = <0>; }; /* Z+X -> => */
+        combo_and2    { key-positions = <22 23>;  bindings = <&m_and2>;     timeout-ms = <40>; layers = <0>; }; /* X+C -> && */
+        combo_or2     { key-positions = <23 24>;  bindings = <&m_or2>;      timeout-ms = <40>; layers = <0>; }; /* C+V -> || */
+        combo_scope   { key-positions = <24 25>;  bindings = <&m_scope>;    timeout-ms = <40>; layers = <0>; }; /* V+B -> :: */
+
+        /* ===== ★(1) 追加コンボ（extended: 必要になったら有効化） =====
+         * まずは core を体に入れてから。最初に全部入れると誤爆と記憶負荷で挫折しがち。 */
+        // combo_walrus  { key-positions = <6 8>;    bindings = <&m_walrus>;   timeout-ms = <40>; layers = <0>; }; /* U+O -> :=  Python */
+        // combo_pow     { key-positions = <0 1>;    bindings = <&m_pow>;      timeout-ms = <40>; layers = <0>; }; /* Q+W -> **  Python */
+        // combo_shl     { key-positions = <29 30>;  bindings = <&m_shl>;      timeout-ms = <40>; layers = <0>; }; /* M+, -> <<  C++ */
+        // combo_shr     { key-positions = <30 31>;  bindings = <&m_shr>;      timeout-ms = <40>; layers = <0>; }; /* ,+. -> >>  C++ */
+        // combo_angle   { key-positions = <13 14>;  bindings = <&m_angle>;    timeout-ms = <40>; layers = <0>; }; /* F+G -> <>  generics */
+        // combo_coalesce{ key-positions = <17 19>;  bindings = <&m_coalesce>; timeout-ms = <40>; layers = <0>; }; /* J+L -> ??  C# */
+        // combo_safecall{ key-positions = <18 20>;  bindings = <&m_safecall>; timeout-ms = <40>; layers = <0>; }; /* K+- -> ?.  C# */
     };
 
     keymap {
         compatible = "zmk,keymap";
 
-        /* ====================== Layer 0 (Base) ====================== */
+        /* ====================== Layer 0 (Base) ======================
+         * ★(2) 変更点: home row を hml/hmr/mt_pinky_l/r に置換（bilateral化）。
+         * ★(4) 変更点: 中央キー pos27 (旧 &trans) を &tog 4 に（音声レイヤー入/切）。
+         * それ以外は変更なし。 */
         default_layer {
             bindings = <
-&lt 3 Q             &kp W           &kp E        &kp R             &kp T                                      &kp Y    &kp U              &kp I        &kp O            &kp P
-&mt_pinky LWIN A    &mt LALT S      &mt LCTRL D  &mt LSHFT F       &lt 1 G                      &mo 2         &lt 1 H  &mt RSHFT J        &mt RCTRL K  &mt RALT L       &mt_pinky RWIN MINUS
-&kp Z               &kp X           &kp C        &kp V             &lt 2 B    &mo 3             &trans        &lt 2 N  &kp M              &kp COMMA    &kp DOT          &kp SLASH
-&kp TAB             &kp LANG2       &kp LANG1    &lt 1 GRAVE       &kp SPACE  &mkp LCLK         &mkp RCLK     &lt 2 ENTER                                              &kp BACKSPACE
+&lt 3 Q              &kp W          &kp E         &kp R             &kp T                                      &kp Y    &kp U              &kp I         &kp O           &kp P
+&mt_pinky_l LWIN A   &hml LALT S    &hml LCTRL D  &hml LSHFT F      &lt 1 G                     &mo 2          &lt 1 H  &hmr RSHFT J       &hmr RCTRL K  &hmr RALT L     &mt_pinky_r RWIN MINUS
+&kp Z                &kp X          &kp C         &kp V             &lt 2 B    &mo 3            &tog 4         &lt 2 N  &kp M              &kp COMMA     &kp DOT         &kp SLASH
+&kp TAB              &kp LANG2      &kp LANG1     &lt 1 GRAVE       &kp SPACE  &mkp LCLK        &mkp RCLK      &lt 2 ENTER                                              &kp BACKSPACE
             >;
             sensor-bindings = <&scroll_up_down>;
         };
@@ -162,6 +282,23 @@
 &trans        &trans      &trans  &trans  &trans          &trans        &trans        &trans        &trans        &trans        &trans
 &trans        &trans      &trans  &trans  &trans  &trans  &bootloader   &trans        &trans        &trans        &trans        &bt BT_CLR
 &trans        &trans      &trans  &trans  &trans  &trans  &trans        &trans                                                  &bt BT_CLR_ALL
+            >;
+            sensor-bindings = <&scroll_up_down>;
+        };
+
+        /* ====================== ★(4) Layer 4 (Voice) ======================
+         * F13〜F18 を「音声操作専用ホットキー」として送出（標準アプリ未使用＝衝突なし）。
+         * Talon / Wispr Flow 側で割り当て:
+         *   F13 = Talon sleep/wake     F14 = push-to-talk 口述(このキーを長押し)
+         *   F15 = Wispr Flow トグル     F16 = 直前の音声入力を取消
+         *   F17 = AI プロンプト入力     F18 = 予備
+         * 入/切: base の中央キー pos27 (&tog 4) をタップ。layer内でも pos27 で抜ける。 */
+        voice_layer {
+            bindings = <
+&kp F17  &kp F18  &trans  &trans  &trans                       &trans  &trans  &trans  &trans  &trans
+&kp F13  &kp F14  &kp F15 &kp F16 &trans                &trans  &trans  &trans  &trans  &trans  &trans
+&trans   &trans   &trans  &trans  &trans   &trans       &tog 4  &trans  &trans  &trans  &trans  &trans
+&trans   &trans   &trans  &trans  &trans   &trans       &trans  &trans                          &trans
             >;
             sensor-bindings = <&scroll_up_down>;
         };
